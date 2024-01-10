@@ -1,4 +1,4 @@
-use std::io::{self, Result, Write};
+use std::io::Result;
 
 use clap::Parser;
 
@@ -19,12 +19,14 @@ fn main() -> Result<()> {
         dotenvy::from_filename(env_file).ok();
     });
 
-    run_command(cli.command)
+    let code = run_command(cli.command)?;
+
+    std::process::exit(code);
 }
 
-fn run_command(cli_command: Vec<String>) -> Result<()> {
+fn run_command(cli_command: Vec<String>) -> Result<i32> {
     if cli_command.is_empty() {
-        return Ok(());
+        return Ok(0);
     }
 
     let mut command = std::process::Command::new(&cli_command[0]);
@@ -35,9 +37,13 @@ fn run_command(cli_command: Vec<String>) -> Result<()> {
         });
     }
 
-    let output = command.output()?;
+    let mut child = command.spawn()?;
+    let exit_status = child.wait()?;
 
-    io::stdout().write_all(&output.stdout)
+    let code = exit_status.code().unwrap_or(-1);
+    println!("\nChild process exited with code {:?}", code);
+
+    Ok(code)
 }
 
 #[test]
